@@ -1,0 +1,104 @@
+version: "3"
+
+services: 
+ #mariadb-1
+ mariadb1:
+   image: mariadb:10.5
+   container_name: mariadb1
+   ports:
+    - "3306:3306"
+   env_file: .env
+   environment:
+    - MARIADB_USER=${MARIADB_USER_1}
+    - MARIADB_PASSWORD=${MARIADB_PASSWORD_1}
+    - MARIADB_DATABASE=${MARIADB_DATABASE_1}
+    - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+   volumes:
+    - ./mariadb1/galera.cnf:/etc/mysql/mariadb.conf.d/galera.cnf
+   cap_add:
+    - all
+   networks:
+    - app_net
+
+ #mariadb-2
+ mariadb2:
+   image: mariadb:10.5
+   container_name: mariadb2
+   ports:
+    - "3307:3306"
+   env_file: .env   
+   environment:
+    - MARIADB_USER=${MARIADB_USER_2}
+    - MARIADB_PASSWORD=${MARIADB_PASSWORD_2}
+    - MARIADB_DATABASE=${MARIADB_DATABASE_2}
+    - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+   volumes:
+    - ./mariadb2/galera.cnf:/etc/mysql/mariadb.conf.d/galera.cnf
+   cap_add:
+    - all
+   networks:
+    - app_net
+
+ #mariadb-2
+ mariadb3:
+   image: mariadb:10.5
+   container_name: mariadb3
+   ports:
+    - "3308:3306"
+   env_file: .env
+   volumes:
+    - ./mariadb3/galera.cnf:/etc/mysql/mariadb.conf.d/galera.cnf
+   environment:
+    - MARIADB_USER=${MARIADB_USER_3}
+    - MARIADB_PASSWORD=${MARIADB_PASSWORD_3}
+    - MARIADB_DATABASE=${MARIADB_DATABASE_3}
+    - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+   cap_add:
+    - all
+   networks:
+    - app_net
+
+ #proxysql
+ proxysql: 
+   image: proxysql/proxysql:latest
+   container_name: proxysql
+   ports:
+    - "6032:6032"
+    - "6070:6070"
+    - "6080:6080"
+   cap_add:
+    - all
+   networks:
+    - app_net
+
+ haproxy:
+    image: haproxy:latest
+    container_name: haproxy
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    ports:
+      - "3000:3000"
+    networks:
+      - app_net
+      - web_net
+
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web_net
+      - traefik.http.routers.mariadb.entrypoints=http
+      - traefik.http.routers.mariadb.rule=Host(`{{PROSUB}}.{{DOMAIN_ADDRESS}}`)
+      - traefik.http.routers.mariadb.middlewares=https-redirect
+      - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.mariadb-secure.entrypoints=https
+      - traefik.http.routers.mariadb-secure.rule=Host(`{{PROSUB}}.{{DOMAIN_ADDRESS}}`)
+      - traefik.http.routers.mariadb-secure.tls=true
+      - traefik.http.routers.mariadb-secure.tls.options=default
+      - traefik.http.routers.mariadb-secure.middlewares=web-auth
+      - traefik.http.routers.mariadb-secure.tls.certresolver=mycert
+      - traefik.http.services.mariadb.loadbalancer.server.port=3000
+
+
+networks:
+  web_net:
+    external: true
+  app_net:
