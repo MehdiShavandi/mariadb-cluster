@@ -284,4 +284,4 @@ wsrep_node_address="mariadb1"
 
 
 
-![Architecture diagram for repository server](images/Capture.jpg)
+![Architecture diagram for repository server](images/Capture.JPG)
