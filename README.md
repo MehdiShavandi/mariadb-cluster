@@ -211,50 +211,38 @@ Finally, all configs for mariadb1, mariadb2, and mariadb3 are complete. In the n
 ```bash 
 
 global
-        log 127.0.0.1   local0
-        log 127.0.0.1   local1 notice
-        maxconn 1024
-        user haproxy
-        group haproxy
-        daemon
+    log 127.0.0.1 local0
+    maxconn 4096
+    user haproxy
+    group haproxy
 
 defaults
-        log     global
-        mode    http
-        option  tcplog
-        option  dontlognull
-        retries 3
-        option  redispatch
-        maxconn 1024
-        timeout connect 5000ms
-        timeout client 50000ms
-        timeout server 50000ms
+    log global
+    mode tcp
+    option tcplog
+    timeout connect 10s
+    timeout client 30s
+    timeout server 30s
 
-listen mariadb_cluster_writes 0.0.0.0:13304
-## A failover pool for writes to ensure writes only hit one node at a time. 
-        mode tcp
-        option httpchk 
-        server mariadb1 mariadb1:3306 check port 9200
-        server mariadb2 mariadb2:3306 check port 9200 backup 
-        server mariadb3 mariadb3:3306 check port 9200 backup
+listen stats
+    bind *:3000
+    mode http
+    stats enable
+    stats uri /
+    stats refresh 2s
 
-listen mariadb_cluster_reads 0.0.0.0:13305
-## A load-balanced pool for reads to utilize all nodes for reads.
-        mode tcp
-        balance leastconn 
-        option httpchk
-	   server mariadb1 mariadb1:3306 check port 9200
-        server mariadb2 mariadb2:3306 check port 9200
-        server mariadb3 mariadb3:3306 check port 9200
+frontend mariadb-galera
+    bind *:3306
+    mode tcp
+    option tcplog
+    default_backend galera_nodes
 
-listen stats 0.0.0.0:9000
-## HAProxy stats web gui.
-	mode http
-	stats enable
-	stats uri / 
-	stats realm HAProxy Statistics 
-	stats auth haproxy:haproxy
-	stats admin if TRUE
+backend galera_nodes
+    option tcpka
+    balance leastconn
+    server mariadb1 mariadb1:3306 check
+    server mariadb2 mariadb2:3306 check
+    server mariadb3 mariadb3:3306 check
 
 ```
 
